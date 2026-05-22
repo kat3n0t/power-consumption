@@ -1,10 +1,11 @@
-import sys
-import os
-from PyQt5 import QtWidgets
-import shop_data
-import main_form
-import dialog
 import csv
+import os
+
+from PyQt5 import QtWidgets
+
+import dialog
+import main_form
+import shop_data
 
 
 class App(QtWidgets.QMainWindow, main_form.Ui_MainWindow):
@@ -85,22 +86,22 @@ class App(QtWidgets.QMainWindow, main_form.Ui_MainWindow):
         self.refresh_shop_values(self.shop_data.get_shop_list()[shop_id])
 
     def refresh_shop_values(self, shop):
-        if shop[13] != '':
+        if shop[13] != "":
             self.lbl_total_value.setText(shop[13])
         else:
-            self.lbl_total_value.setText('0')
-        if shop[14] != '':
+            self.lbl_total_value.setText("0")
+        if shop[14] != "":
             self.lbl_max_power_usage_value.setText(shop[14])
         else:
-            self.lbl_max_power_usage_value.setText('Не найдено')
+            self.lbl_max_power_usage_value.setText("Не найдено")
 
     def add_shop_click(self):
         """
         Обрабатывает нажатие на кнопку добавления цеха
         """
 
-        name_shop, ok = QtWidgets.QInputDialog.getText(self, 'Название цеха', 'Введите название нового цеха')
-        if ok and name_shop != '':
+        name_shop, ok = QtWidgets.QInputDialog.getText(self, "Название цеха", "Введите название нового цеха")
+        if ok and name_shop != "":
             self.shop_data.add_shop(name_shop)
             self.comboBox_shop.addItem(name_shop)
 
@@ -130,13 +131,13 @@ class App(QtWidgets.QMainWindow, main_form.Ui_MainWindow):
         shop_list = self.shop_data.get_shop_list()
         index = self.comboBox_shop.currentIndex()
         sum_months = [0.0]
-        max_usage_month = ['Не найдено']
+        max_usage_month = ["Не найдено"]
         self.set_data_months(self.grid_months, sum_months, max_usage_month)
-        sum_months[0] = format(sum_months[0], '.2f')  # во избежание перегрузок
+        sum_months[0] = format(sum_months[0], ".2f")  # во избежание перегрузок
         shop_list[index] = [self.shop_data.get_shop_name(index)]
         for box in self.get_month_boxes:
-            shop_list[index].append(str(box.value()).replace('.', ','))
-        shop_list[index].append(str(sum_months[0]).replace('.', ','))
+            shop_list[index].append(str(box.value()).replace(".", ","))
+        shop_list[index].append(str(sum_months[0]).replace(".", ","))
         shop_list[index].append(max_usage_month[0])
 
         self.refresh_shops(index)
@@ -162,10 +163,10 @@ class App(QtWidgets.QMainWindow, main_form.Ui_MainWindow):
         Загружает данные из табличного файла
         """
 
-        csv_path = QtWidgets.QFileDialog.getOpenFileName(self, 'Выберите файл', os.getenv('Home'), 'CSV (*.csv)')
-        if csv_path[0] != '':
-            with open(csv_path[0], 'r') as file:
-                csv_reader = csv.reader(file, delimiter=';')
+        csv_path = QtWidgets.QFileDialog.getOpenFileName(self, "Выберите файл", os.getenv("Home"), "CSV (*.csv)")
+        if csv_path[0] != "":
+            with open(csv_path[0], "r") as file:
+                csv_reader = csv.reader(file, delimiter=";")
                 self.clear_app()
                 try:
                     self.shop_data.load_shop_list(csv_reader)
@@ -173,7 +174,7 @@ class App(QtWidgets.QMainWindow, main_form.Ui_MainWindow):
                     for row in shop_list:
                         self.comboBox_shop.addItem(row[0])
                 except:
-                    QtWidgets.QMessageBox.about(self, 'Ошибка', 'Файл не может быть проанализирован')
+                    QtWidgets.QMessageBox.about(self, "Ошибка", "Файл не может быть проанализирован")
 
     def clear_app(self):
         """
@@ -182,8 +183,8 @@ class App(QtWidgets.QMainWindow, main_form.Ui_MainWindow):
 
         self.comboBox_shop.clear()
         self.shop_data.clear_shops()
-        self.lbl_max_power_usage_value.setText('Не найдено')
-        self.lbl_total_value.setText('0,00')
+        self.lbl_max_power_usage_value.setText("Не найдено")
+        self.lbl_total_value.setText("0,00")
         for grid in self.grid_months.children():
             for i in range(len(grid)):
                 if type(grid.itemAt(i).widget()) is QtWidgets.QDoubleSpinBox:
@@ -198,28 +199,17 @@ class App(QtWidgets.QMainWindow, main_form.Ui_MainWindow):
         shop_list.extend(self.shop_data.get_shop_list())
         shop_list.append(self.shop_data.get_total_line())
         if len(shop_list) > 2:
-            csv_path = QtWidgets.QFileDialog.getSaveFileName(self, 'Сохраните файл', '', 'CSV (*.csv);;Excel (*.xlsx)')
-            if csv_path[0] != '':
+            csv_path = QtWidgets.QFileDialog.getSaveFileName(self, "Сохраните файл", "", "CSV (*.csv);;Excel (*.xlsx)")
+            if csv_path[0] != "":
                 try:
-                    if '.csv' in csv_path[0]:
-                        with open(csv_path[0], 'w') as file:
-                            csv_writer = csv.writer(file, delimiter=';', lineterminator='\n')
+                    if ".csv" in csv_path[0]:
+                        with open(csv_path[0], "w") as file:
+                            csv_writer = csv.writer(file, delimiter=";", lineterminator="\n")
                             for line in shop_list:
                                 csv_writer.writerow(line)
-                    elif '.xlsx' in csv_path[0]:
+                    elif ".xlsx" in csv_path[0]:
                         self.shop_data.save_data_as_xlsx(shop_list, csv_path[0])
                 except:
-                    QtWidgets.QMessageBox.about(self, 'Ошибка', 'Невозможно записать файл')
+                    QtWidgets.QMessageBox.about(self, "Ошибка", "Невозможно записать файл")
         else:
-            QtWidgets.QMessageBox.about(self, 'Ошибка', 'Записи о цехах не найдены')
-
-
-def main():
-    app_main = QtWidgets.QApplication(sys.argv)
-    window = App()
-    window.show()
-    sys.exit(app_main.exec_())
-
-
-if __name__ == '__main__':  # Если запускаем этот файл,
-    main()  # то активируем функцию main()
+            QtWidgets.QMessageBox.about(self, "Ошибка", "Записи о цехах не найдены")
