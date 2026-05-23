@@ -6,6 +6,7 @@ from PyQt5 import QtWidgets
 import dialog
 import main_form
 import shop_data
+from strings import UIStrings, ErrorStrings
 
 
 class App(QtWidgets.QMainWindow, main_form.Ui_MainWindow):
@@ -93,14 +94,14 @@ class App(QtWidgets.QMainWindow, main_form.Ui_MainWindow):
         if shop[14] != "":
             self.lbl_max_power_usage_value.setText(shop[14])
         else:
-            self.lbl_max_power_usage_value.setText("Не найдено")
+            self.lbl_max_power_usage_value.setText(UIStrings.NOT_FOUND)
 
     def add_shop_click(self):
         """
         Обрабатывает нажатие на кнопку добавления цеха
         """
 
-        name_shop, ok = QtWidgets.QInputDialog.getText(self, "Название цеха", "Введите название нового цеха")
+        name_shop, ok = QtWidgets.QInputDialog.getText(self, UIStrings.SHOP_NAME, UIStrings.ENTER_NEW_SHOP_NAME)
         if ok and name_shop != "":
             self.shop_data.add_shop(name_shop)
             self.comboBox_shop.addItem(name_shop)
@@ -131,7 +132,7 @@ class App(QtWidgets.QMainWindow, main_form.Ui_MainWindow):
         shop_list = self.shop_data.get_shop_list()
         index = self.comboBox_shop.currentIndex()
         sum_months = [0.0]
-        max_usage_month = ["Не найдено"]
+        max_usage_month = [UIStrings.NOT_FOUND]
         self.set_data_months(self.grid_months, sum_months, max_usage_month)
         sum_months[0] = format(sum_months[0], ".2f")  # во избежание перегрузок
         shop_list[index] = [self.shop_data.get_shop_name(index)]
@@ -163,7 +164,7 @@ class App(QtWidgets.QMainWindow, main_form.Ui_MainWindow):
         Загружает данные из табличного файла
         """
 
-        csv_path = QtWidgets.QFileDialog.getOpenFileName(self, "Выберите файл", os.getenv("Home"), "CSV (*.csv)")
+        csv_path = QtWidgets.QFileDialog.getOpenFileName(self, UIStrings.CHOOSE_FILE, os.getenv("Home"), "CSV (*.csv)")
         if csv_path[0] != "":
             with open(csv_path[0], "r") as file:
                 csv_reader = csv.reader(file, delimiter=";")
@@ -174,7 +175,7 @@ class App(QtWidgets.QMainWindow, main_form.Ui_MainWindow):
                     for row in shop_list:
                         self.comboBox_shop.addItem(row[0])
                 except:
-                    QtWidgets.QMessageBox.about(self, "Ошибка", "Файл не может быть проанализирован")
+                    QtWidgets.QMessageBox.about(self, ErrorStrings.DEFAULT, ErrorStrings.FILE_PARSE_FAILED)
 
     def clear_app(self):
         """
@@ -183,7 +184,7 @@ class App(QtWidgets.QMainWindow, main_form.Ui_MainWindow):
 
         self.comboBox_shop.clear()
         self.shop_data.clear_shops()
-        self.lbl_max_power_usage_value.setText("Не найдено")
+        self.lbl_max_power_usage_value.setText(UIStrings.NOT_FOUND)
         self.lbl_total_value.setText("0,00")
         for grid in self.grid_months.children():
             for i in range(len(grid)):
@@ -199,7 +200,8 @@ class App(QtWidgets.QMainWindow, main_form.Ui_MainWindow):
         shop_list.extend(self.shop_data.get_shop_list())
         shop_list.append(self.shop_data.get_total_line())
         if len(shop_list) > 2:
-            csv_path = QtWidgets.QFileDialog.getSaveFileName(self, "Сохраните файл", "", "CSV (*.csv);;Excel (*.xlsx)")
+            csv_path = QtWidgets.QFileDialog.getSaveFileName(self, UIStrings.SAVE_FILE, "",
+                                                             "CSV (*.csv);;Excel (*.xlsx)")
             if csv_path[0] != "":
                 try:
                     if ".csv" in csv_path[0]:
@@ -210,6 +212,6 @@ class App(QtWidgets.QMainWindow, main_form.Ui_MainWindow):
                     elif ".xlsx" in csv_path[0]:
                         self.shop_data.save_data_as_xlsx(shop_list, csv_path[0])
                 except:
-                    QtWidgets.QMessageBox.about(self, "Ошибка", "Невозможно записать файл")
+                    QtWidgets.QMessageBox.about(self, ErrorStrings.DEFAULT, ErrorStrings.FILE_SAVE_FAILED)
         else:
-            QtWidgets.QMessageBox.about(self, "Ошибка", "Записи о цехах не найдены")
+            QtWidgets.QMessageBox.about(self, ErrorStrings.DEFAULT, ErrorStrings.SHOPS_NOT_FOUND)

@@ -1,11 +1,13 @@
 from xlsxwriter.workbook import Workbook
 
+from strings import UIStrings
+
 
 class ShopData:
     __shop_list = []
 
     def is_totals_row(self, row, reader):
-        return (self.is_last_row(reader)) and (row[0] == "Итог")
+        return (self.is_last_row(reader)) and (row[0] == UIStrings.TOTAL)
 
     @staticmethod
     def is_last_row(reader):
@@ -19,10 +21,10 @@ class ShopData:
 
     def load_shop_list(self, reader):
         for row in reader:
-            if (row[0] != "") and not(reader.line_num == 1) and not(self.is_totals_row(row, reader)):
+            if (row[0] != "") and not (reader.line_num == 1) and not (self.is_totals_row(row, reader)):
                 self.add_shop_loaded_data(row)
 
-    def get_shop_list(self):    
+    def get_shop_list(self):
         return self.__shop_list
 
     def add_shop_loaded_data(self, *shop_data):  # добавление загружаемых данных о цехе
@@ -50,11 +52,14 @@ class ShopData:
 
     @staticmethod
     def get_first_line():
-        return ["Список цехов", "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь",
-                "Октябрь", "Ноябрь", "Декабрь", "Итог за год", "Максимальное потребление"]
+        return [UIStrings.SHOPS_LIST,
+                UIStrings.MONTH_JAN, UIStrings.MONTH_FEB, UIStrings.MONTH_MAR, UIStrings.MONTH_APR,
+                UIStrings.MONTH_MAY, UIStrings.MONTH_JUN, UIStrings.MONTH_JUL, UIStrings.MONTH_AUG,
+                UIStrings.MONTH_SEP, UIStrings.MONTH_OCT, UIStrings.MONTH_NOV, UIStrings.MONTH_DEC,
+                UIStrings.TOTAL_PER_YEAR, UIStrings.MAX_CONSUMPTION]
 
     def get_total_line(self):
-        total_line = ["Итог"]
+        total_line = [UIStrings.TOTAL]
         number_month = 1
         while number_month < 14:
             sum_month = 0.0
