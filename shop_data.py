@@ -4,13 +4,32 @@ from strings import UIStrings
 
 
 class ShopData:
-    __shop_list = []
+    def __init__(self):
+        self._shop_list: list[list[str]] = []
 
-    def is_totals_row(self, row, reader):
-        return (self.is_last_row(reader)) and (row[0] == UIStrings.TOTAL)
+    @property
+    def first_line(self) -> list[str]:
+        return [UIStrings.SHOPS_LIST,
+                UIStrings.MONTH_JAN, UIStrings.MONTH_FEB, UIStrings.MONTH_MAR, UIStrings.MONTH_APR,
+                UIStrings.MONTH_MAY, UIStrings.MONTH_JUN, UIStrings.MONTH_JUL, UIStrings.MONTH_AUG,
+                UIStrings.MONTH_SEP, UIStrings.MONTH_OCT, UIStrings.MONTH_NOV, UIStrings.MONTH_DEC,
+                UIStrings.TOTAL_PER_YEAR, UIStrings.MAX_CONSUMPTION]
 
-    @staticmethod
-    def is_last_row(reader):
+    def get_shop_list(self):
+        return self._shop_list
+
+    def get_shop_by_number(self, shop_number: int):
+        return self._shop_list[shop_number]
+
+    def load_shop_list(self, reader):
+        for row in reader:
+            if (row[0] != "") and not (reader.line_num == 1) and not (self._is_totals_row(row, reader)):
+                self._add_shop_loaded_data(row)
+
+    def _is_totals_row(self, row, reader):
+        return (self._is_last_row(reader)) and (row[0] == UIStrings.TOTAL)
+
+    def _is_last_row(self, reader):
         try:
             list_r = [reader]  # список позволяет копировать объект
             new_reader = list_r.copy()
@@ -19,59 +38,42 @@ class ShopData:
         except:
             return True
 
-    def load_shop_list(self, reader):
-        for row in reader:
-            if (row[0] != "") and not (reader.line_num == 1) and not (self.is_totals_row(row, reader)):
-                self.add_shop_loaded_data(row)
-
-    def get_shop_list(self):
-        return self.__shop_list
-
-    def add_shop_loaded_data(self, *shop_data):  # добавление загружаемых данных о цехе
-        self.__shop_list.append(*shop_data)
+    def _add_shop_loaded_data(self, *shop_data):
+        self._shop_list.append(*shop_data)
 
     def add_shop(self, name_shop):  # добавление нового цеха
-        self.__shop_list.append([name_shop, "0,00", "0,00", "0,00", "0,00", "0,00", "0,00", "0,00", "0,00", "0,00",
-                                 "0,00", "0,00", "0,00", "0,00", ""])
+        self._shop_list.append([name_shop, "0,00", "0,00", "0,00", "0,00", "0,00", "0,00", "0,00", "0,00", "0,00",
+                                "0,00", "0,00", "0,00", "0,00", ""])
 
     def clear_shops(self):  # очистка списка цехов
-        self.__shop_list = []
+        self._shop_list = []
 
     def del_shop(self, number_shop):
-        if self.__shop_list:
-            del self.__shop_list[number_shop]
+        if self._shop_list:
+            del self._shop_list[number_shop]
 
     def get_value_for_month(self, number_shop, number_month):
         try:
-            return float(self.__shop_list[number_shop][number_month].replace(",", "."))
+            return float(self._shop_list[number_shop][number_month].replace(",", "."))
         except ValueError:
             return 0.0
 
     def get_shop_name(self, shop_number):
-        return self.__shop_list[shop_number][0]
-
-    @staticmethod
-    def get_first_line():
-        return [UIStrings.SHOPS_LIST,
-                UIStrings.MONTH_JAN, UIStrings.MONTH_FEB, UIStrings.MONTH_MAR, UIStrings.MONTH_APR,
-                UIStrings.MONTH_MAY, UIStrings.MONTH_JUN, UIStrings.MONTH_JUL, UIStrings.MONTH_AUG,
-                UIStrings.MONTH_SEP, UIStrings.MONTH_OCT, UIStrings.MONTH_NOV, UIStrings.MONTH_DEC,
-                UIStrings.TOTAL_PER_YEAR, UIStrings.MAX_CONSUMPTION]
+        return self._shop_list[shop_number][0]
 
     def get_total_line(self):
         total_line = [UIStrings.TOTAL]
         number_month = 1
         while number_month < 14:
             sum_month = 0.0
-            for row in self.__shop_list:
+            for row in self._shop_list:
                 if row[number_month] != "":
                     sum_month += float(row[number_month].replace(",", "."))
             total_line.append(str(sum_month).replace(".", ","))
             number_month += 1
         return total_line
 
-    @staticmethod
-    def save_data_as_xlsx(data, path):
+    def save_data_as_xlsx(self, data, path):
         wb = Workbook(path)
         worksheet = wb.add_worksheet()
         row = 0
