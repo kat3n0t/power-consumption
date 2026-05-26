@@ -1,9 +1,18 @@
+from enum import Enum
+
+from xlsxwriter.format import Format
 from xlsxwriter.workbook import Workbook
 
 from strings import UIStrings
 
 
 class ShopData:
+    class _BgColor(str, Enum):
+        YELLOW = "yellow"
+        RED = "red"
+        ORANGE = "orange"
+        WHITE = "white"
+
     def __init__(self):
         self._shop_list: list[list[str]] = []
 
@@ -73,28 +82,36 @@ class ShopData:
             number_month += 1
         return total_line
 
-    def save_data_as_xlsx(self, data, path):
-        wb = Workbook(path)
-        worksheet = wb.add_worksheet()
-        row = 0
-        for shop in data:
-            col = 0
-            for item in shop:
-                cell_format = wb.add_format()
-                cell_format.set_border(1)
-                if row == 0:
-                    if col == 0:
-                        cell_format.set_bg_color("yellow")
-                    elif 0 < col < 13:
-                        cell_format.set_bg_color("red")
-                    elif col >= 13:
-                        cell_format.set_bg_color("orange")
-                else:
-                    cell_format.set_bg_color("white")
-                if (item != "") and (0 < row < len(shop)) and (0 < col < 14):
-                    worksheet.write(row, col, float(item.replace(",", ".")), cell_format)
-                else:
-                    worksheet.write(row, col, item, cell_format)
-                col += 1
-            row += 1
-        wb.close()
+    def save_data_as_xlsx(self, shop_list: list[list[str]], path: str):
+        with Workbook(path) as wb:
+            worksheet = wb.add_worksheet()
+
+            fmt_yellow = self._create_format(wb, self._BgColor.YELLOW)
+            fmt_red = self._create_format(wb, self._BgColor.RED)
+            fmt_orange = self._create_format(wb, self._BgColor.ORANGE)
+            fmt_white = self._create_format(wb, self._BgColor.WHITE)
+
+            for row, shop in enumerate(shop_list):
+                for col, item in enumerate(shop):
+                    if row == 0:
+                        if col == 0:
+                            cell_format = fmt_yellow
+                        elif 0 < col < 13:
+                            cell_format = fmt_red
+                        elif col >= 13:
+                            cell_format = fmt_orange
+                        else:
+                            cell_format = fmt_white
+                    else:
+                        cell_format = fmt_white
+                    if item and (row > 0) and (0 < col < 14):
+                        worksheet.write(row, col, float(item.replace(",", ".")), cell_format)
+                    else:
+                        worksheet.write(row, col, item, cell_format)
+
+    # noinspection PyMethodMayBeStatic
+    def _create_format(self, wb: Workbook, bg_color: _BgColor) -> Format:
+        fmt = wb.add_format()
+        fmt.set_border(1)
+        fmt.set_bg_color(bg_color)
+        return fmt
