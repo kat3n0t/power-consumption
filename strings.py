@@ -1,4 +1,8 @@
+from enum import Enum
+
+
 class UIStrings:
+    ERROR_DEFAULT = "Ошибка"
     NOT_FOUND = "Не найдено"
 
     SHOP_NAME = "Название цеха"
@@ -26,9 +30,7 @@ class UIStrings:
     MONTH_DEC = "Декабрь"
 
 
-class ErrorStrings:
-    DEFAULT = "Ошибка"
-
+class ErrorStrings(str, Enum):
     FILE_PARSE_FAILED = "Файл не может быть проанализирован"
     FILE_SAVE_FAILED = "Невозможно записать файл"
 
