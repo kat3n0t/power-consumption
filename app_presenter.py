@@ -1,27 +1,16 @@
-import csv
-from enum import Enum
-
-from xlsxwriter import Workbook
-from xlsxwriter.format import Format
-
 from power_consumption import App
+from repository import FileRepository
 from shop_model import ShopModel
 from strings import UIStrings, ErrorStrings
 
 
 class AppPresenter:
-    _DELIMITER = ";"
     _UNSELECTED_SHOP_INDEX = -1
 
-    class _BgColor(str, Enum):
-        YELLOW = "yellow"
-        RED = "red"
-        ORANGE = "orange"
-        WHITE = "white"
-
-    def __init__(self, model: ShopModel):
+    def __init__(self, model: ShopModel, file_repository: FileRepository):
         self._view: App | None = None
         self._model = model
+        self._file_repository = file_repository
 
     @property
     def _first_line(self) -> list[str]:
@@ -94,15 +83,14 @@ class AppPresenter:
 
         csv_path = self._view.show_open_file_name_dialog()
         if csv_path:
-            with open(csv_path, "r") as file:
-                self._clear_data()
-                try:
-                    csv_reader = csv.reader(file, delimiter=self._DELIMITER)
-                    shop_list = self._model.load_shop_list(csv_reader, UIStrings.TOTAL)
-                    for row in shop_list:
-                        self._view.add_shop(row[0])
-                except Exception:
-                    self._view.show_error_message(ErrorStrings.FILE_PARSE_FAILED)
+            self._clear_data()
+            try:
+                csv_data = self._file_repository.load_from_csv(csv_path)
+                shop_list = self._model.load_shop_list(csv_data, UIStrings.TOTAL)
+                for row in shop_list:
+                    self._view.add_shop(row[0])
+            except Exception:
+                self._view.show_error_message(ErrorStrings.FILE_PARSE_FAILED)
 
     def on_file_save_triggered(self):
         if self._view is None:
@@ -115,13 +103,10 @@ class AppPresenter:
             csv_path = self._view.show_save_file_name_dialog()
             if csv_path:
                 try:
-                    if ".csv" in csv_path:
-                        with open(csv_path, "w") as file:
-                            csv_writer = csv.writer(file, delimiter=self._DELIMITER, lineterminator="\n")
-                            for line in shop_list:
-                                csv_writer.writerow(line)
-                    elif ".xlsx" in csv_path:
-                        self._save_data_as_xlsx(shop_list, csv_path)
+                    if csv_path.endswith(".csv"):
+                        self._file_repository.save_to_csv(csv_path, shop_list)
+                    elif csv_path.endswith(".xlsx"):
+                        self._file_repository.save_to_xlsx(csv_path, shop_list)
                 except Exception:
                     self._view.show_error_message(ErrorStrings.FILE_SAVE_FAILED)
         else:
@@ -162,37 +147,3 @@ class AppPresenter:
         total_line.append(UIStrings.TOTAL)
         total_line.extend(ShopModel.format_totals(totals))
         return total_line
-
-    def _save_data_as_xlsx(self, shop_list: list[list[str]], path: str):
-        with Workbook(path) as wb:
-            worksheet = wb.add_worksheet()
-
-            fmt_yellow = self._create_format(wb, self._BgColor.YELLOW)
-            fmt_red = self._create_format(wb, self._BgColor.RED)
-            fmt_orange = self._create_format(wb, self._BgColor.ORANGE)
-            fmt_white = self._create_format(wb, self._BgColor.WHITE)
-
-            for row, shop in enumerate(shop_list):
-                for col, item in enumerate(shop):
-                    if row == 0:
-                        if col == 0:
-                            cell_format = fmt_yellow
-                        elif 0 < col < 13:
-                            cell_format = fmt_red
-                        elif col >= 13:
-                            cell_format = fmt_orange
-                        else:
-                            cell_format = fmt_white
-                    else:
-                        cell_format = fmt_white
-                    if item and (row > 0) and (0 < col < 14):
-                        worksheet.write(row, col, float(item.replace(",", ".")), cell_format)
-                    else:
-                        worksheet.write(row, col, item, cell_format)
-
-    # noinspection PyMethodMayBeStatic
-    def _create_format(self, wb: Workbook, bg_color: _BgColor) -> Format:
-        fmt = wb.add_format()
-        fmt.set_border(1)
-        fmt.set_bg_color(bg_color)
-        return fmt

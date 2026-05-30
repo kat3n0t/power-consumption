@@ -29,13 +29,12 @@ class ShopModel:
         new_shop = [shop_name] + [ShopModel._SHOP_INIT_CONSUMPTION] * 13 + [ShopModel._SHOP_INIT_MAX_CONSUMPTION]
         self._add_shop(new_shop)
 
-    def load_shop_list(self, reader, total_marker: str) -> list[list[str]]:
-        non_empty_rows = [row for row in reader if row and row[0].strip()]
-        if not non_empty_rows:
+    def load_shop_list(self, shop_list: list[list[str]], total_marker: str) -> list[list[str]]:
+        if not shop_list:
             return self._shop_list
-        if non_empty_rows[-1][0] == total_marker:
-            non_empty_rows.pop()
-        for row in non_empty_rows[1:]:
+        if shop_list[-1][0] == total_marker:
+            shop_list.pop()
+        for row in shop_list[1:]:
             self._add_shop(row)
         return self._shop_list
 
