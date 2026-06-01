@@ -1,21 +1,7 @@
 from enum import Enum
 
 
-class UIStrings:
-    ERROR_DEFAULT = "Ошибка"
-    NOT_FOUND = "Не найдено"
-
-    SHOP_NAME = "Название цеха"
-    ENTER_NEW_SHOP_NAME = "Введите название нового цеха"
-    SHOPS_LIST = "Список цехов"
-
-    CHOOSE_FILE = "Выберите файл"
-    SAVE_FILE = "Сохраните файл"
-
-    TOTAL = "Итог"
-    TOTAL_PER_YEAR = "Итог за год"
-    MAX_CONSUMPTION = "Максимальное потребление"
-
+class _SharedStrings:
     MONTH_JAN = "Январь"
     MONTH_FEB = "Февраль"
     MONTH_MAR = "Март"
@@ -28,6 +14,32 @@ class UIStrings:
     MONTH_OCT = "Октябрь"
     MONTH_NOV = "Ноябрь"
     MONTH_DEC = "Декабрь"
+
+    MONTHS = (
+        MONTH_JAN, MONTH_FEB, MONTH_MAR, MONTH_APR, MONTH_MAY, MONTH_JUN,
+        MONTH_JUL, MONTH_AUG, MONTH_SEP, MONTH_OCT, MONTH_NOV, MONTH_DEC
+    )
+
+
+class UIStrings:
+    ERROR_DEFAULT = "Ошибка"
+    NOT_FOUND = "Не найдено"
+
+    SHOP_NAME = "Название цеха"
+    ENTER_NEW_SHOP_NAME = "Введите название нового цеха"
+
+    CHOOSE_FILE = "Выберите файл"
+    SAVE_FILE = "Сохраните файл"
+
+    MONTHS = _SharedStrings.MONTHS
+
+
+class CSVStrings:
+    SHOPS_LIST = "Список цехов"
+    TOTAL = "Итог"
+    TOTAL_PER_YEAR = "Итог за год"
+    MAX_CONSUMPTION = "Максимальное потребление"
+    MONTHS = _SharedStrings.MONTHS
 
 
 class ErrorStrings(str, Enum):
