@@ -1,182 +1,120 @@
-import sys
 import os
+from typing import TYPE_CHECKING
+from uuid import UUID
+
 from PyQt5 import QtWidgets
-import shop_data
-import main_form
+from PyQt5.QtWidgets import QDoubleSpinBox, QLayout
+
 import dialog
-import csv
+import main_form
+from formatter import ConsumptionFormatter
+from shop import Shop
+from strings import UIStrings, ErrorStrings
+
+if TYPE_CHECKING:
+    from app_presenter import AppPresenter
 
 
 class App(QtWidgets.QMainWindow, main_form.Ui_MainWindow):
-    shop_data = shop_data.ShopData()
-
-    def __init__(self):
+    def __init__(self, presenter: "AppPresenter"):
         super().__init__()
         self.setupUi(self)
+
+        self._presenter = presenter
+
         self.set_enabled_data_fields(False)
 
-        self.comboBox_shop.currentIndexChanged.connect(self.change_shop)
-        self.pushbtn_add_shop.clicked.connect(self.add_shop_click)
-        self.pushbtn_del_shop.clicked.connect(self.del_shop_click)
-        self.pushbtn_confirm_data.clicked.connect(self.update_data_click)
-        self.pushbtn_open_total.clicked.connect(self.open_total_click)
-        self.action_load_file.triggered.connect(self.load_file_click)
-        self.action_save_file.triggered.connect(self.save_file_click)
+        self.comboBox_shop.currentIndexChanged.connect(
+            lambda index: self._presenter.on_shop_changed(self.comboBox_shop.currentData())
+        )
+        self.pushbtn_add_shop.clicked.connect(self._presenter.on_add_shop_clicked)
+        self.pushbtn_del_shop.clicked.connect(self._presenter.on_delete_shop_clicked)
+        self.pushbtn_confirm_data.clicked.connect(self._presenter.on_data_update_clicked)
+        self.pushbtn_open_total.clicked.connect(self._presenter.on_open_total_clicked)
+        self.action_load_file.triggered.connect(self._presenter.on_file_load_triggered)
+        self.action_save_file.triggered.connect(self._presenter.on_file_save_triggered)
 
-    def change_shop(self):
-        index = self.comboBox_shop.currentIndex()
-        if index != -1:
-            self.set_enabled_data_fields(True)
-            self.refresh_shops(index)
-            if not (self.pushbtn_confirm_data.isEnabled()):
-                self.pushbtn_confirm_data.setEnabled(True)
-        else:
-            self.clear_app()
-            self.set_enabled_data_fields(False)
-            if self.pushbtn_confirm_data.isEnabled():
-                self.pushbtn_confirm_data.setEnabled(False)
+    @property
+    def _month_boxes(self) -> list[QDoubleSpinBox]:
+        return [self.dblSpinBox_january, self.dblSpinBox_february, self.dblSpinBox_march, self.dblSpinBox_april,
+                self.dblSpinBox_may, self.dblSpinBox_june, self.dblSpinBox_july, self.dblSpinBox_august,
+                self.dblSpinBox_september, self.dblSpinBox_october, self.dblSpinBox_november, self.dblSpinBox_december]
 
-    def set_enabled_data_fields(self, status):
-        # статус элементов, содержащих данные о цехе
-        self.set_enabled_fields_by_grid(self.grid_value, status)
-        for grid in self.grid_months.children():
-            self.set_enabled_fields_by_grid(grid, status)
-        # статус кнопок, управляющих данными
-        self.set_enabled_fields_by_grid(self.vlayout_data_buttons, status)
+    def get_months_new_values(self) -> list[float]:
+        return [box.value() for box in self._month_boxes]
 
-    @staticmethod
-    def set_enabled_fields_by_grid(grid, status):
-        for item in range(len(grid)):
-            if type(grid.itemAt(item).widget()) in (QtWidgets.QLabel, QtWidgets.QDoubleSpinBox, QtWidgets.QPushButton):
-                grid.itemAt(item).widget().setEnabled(status)
+    def set_enabled_data_fields(self, is_enabled: bool):
+        self._set_enabled_fields(self.grid_value, is_enabled)
+        for grid_month in self.grid_months.children():
+            self._set_enabled_fields(grid_month, is_enabled)
+        self._set_enabled_fields(self.vlayout_data_buttons, is_enabled)
 
-    def refresh_shops(self, shop_id):
-        self.dblSpinBox_january.setValue(self.shop_data.get_value_for_month(shop_id, 1))
-        self.dblSpinBox_february.setValue(self.shop_data.get_value_for_month(shop_id, 2))
-        self.dblSpinBox_march.setValue(self.shop_data.get_value_for_month(shop_id, 3))
-        self.dblSpinBox_april.setValue(self.shop_data.get_value_for_month(shop_id, 4))
-        self.dblSpinBox_may.setValue(self.shop_data.get_value_for_month(shop_id, 5))
-        self.dblSpinBox_june.setValue(self.shop_data.get_value_for_month(shop_id, 6))
-        self.dblSpinBox_july.setValue(self.shop_data.get_value_for_month(shop_id, 7))
-        self.dblSpinBox_august.setValue(self.shop_data.get_value_for_month(shop_id, 8))
-        self.dblSpinBox_september.setValue(self.shop_data.get_value_for_month(shop_id, 9))
-        self.dblSpinBox_october.setValue(self.shop_data.get_value_for_month(shop_id, 10))
-        self.dblSpinBox_november.setValue(self.shop_data.get_value_for_month(shop_id, 11))
-        self.dblSpinBox_december.setValue(self.shop_data.get_value_for_month(shop_id, 12))
-        self.refresh_shop_values(self.shop_data.get_shop_list()[shop_id])
+    def refresh_shop(self, shop: Shop):
+        for month_idx, month_box in enumerate(self._month_boxes):
+            month_value = shop.months_values[month_idx]
+            month_box.setValue(month_value)
+        self.refresh_calculated_shop_fields(shop)
 
-    def refresh_shop_values(self, shop):
-        if shop[13] != '':
-            self.lbl_total_value.setText(shop[13])
-        else:
-            self.lbl_total_value.setText('0')
-        if shop[14] != '':
-            self.lbl_max_power_usage_value.setText(shop[14])
-        else:
-            self.lbl_max_power_usage_value.setText('Не найдено')
+    def refresh_calculated_shop_fields(self, shop: Shop):
+        month_name = self._get_max_consumption_month_name(shop.max_consumption_month_index)
+        self._set_shop_max_consumption(month_name)
 
-    def add_shop_click(self):
-        name_shop, ok = QtWidgets.QInputDialog.getText(self, 'Название цеха', 'Введите название нового цеха')
-        if ok and name_shop != '':
-            self.shop_data.add_shop(name_shop)
-            self.comboBox_shop.addItem(name_shop)
+        self._set_shop_total(ConsumptionFormatter.format_value(shop.total_per_year))
 
-    def del_shop_click(self):
-        index = self.comboBox_shop.currentIndex()
-        if index != -1:
-            self.shop_data.del_shop(index)
-            self.comboBox_shop.removeItem(index)
+    def add_shop(self, shop: Shop):
+        self.comboBox_shop.addItem(shop.name, shop.id)
 
-    def open_total_click(self):
-        dialog_total = dialog.DialogTotal(self.shop_data.get_total_line())
+    def remove_shop(self, shop_id: UUID):
+        index_to_remove = self.comboBox_shop.findData(shop_id)
+        if index_to_remove != -1:
+            self.comboBox_shop.removeItem(index_to_remove)
+
+    def clear_data_fields(self):
+        self.comboBox_shop.clear()
+        self._set_shop_max_consumption(UIStrings.NOT_FOUND)
+        self._set_shop_total(ConsumptionFormatter.format_value(0.0))
+
+        for month_box in self._month_boxes:
+            month_box.setValue(0.0)
+
+    def enable_confirm_button(self, is_enabled: bool):
+        self.pushbtn_confirm_data.setEnabled(is_enabled)
+
+    def show_total_dialog(self, totals: list[str]):
+        dialog_total = dialog.DialogTotal(self, totals)
         dialog_total.exec_()
 
-    def update_data_click(self):
-        shop_list = self.shop_data.get_shop_list()
-        index = self.comboBox_shop.currentIndex()
-        sum_months = [0.0]
-        max_usage_month = ['Не найдено']
-        self.set_data_months(self.grid_months, sum_months, max_usage_month)
-        sum_months[0] = format(sum_months[0], '.2f')  # во избежание перегрузок
-        shop_list[index] = [self.shop_data.get_shop_name(index), str(self.dblSpinBox_january.value()).replace('.', ','),
-                            str(self.dblSpinBox_february.value()).replace('.', ','),
-                            str(self.dblSpinBox_march.value()).replace('.', ','),
-                            str(self.dblSpinBox_april.value()).replace('.', ','),
-                            str(self.dblSpinBox_may.value()).replace('.', ','),
-                            str(self.dblSpinBox_june.value()).replace('.', ','),
-                            str(self.dblSpinBox_july.value()).replace('.', ','),
-                            str(self.dblSpinBox_august.value()).replace('.', ','),
-                            str(self.dblSpinBox_september.value()).replace('.', ','),
-                            str(self.dblSpinBox_october.value()).replace('.', ','),
-                            str(self.dblSpinBox_november.value()).replace('.', ','),
-                            str(self.dblSpinBox_december.value()).replace('.', ','),
-                            str(sum_months[0]).replace('.', ','), max_usage_month[0]]
-        self.refresh_shops(index)
+    def show_add_shop_dialog(self) -> tuple[str, bool | None]:
+        return QtWidgets.QInputDialog.getText(self, UIStrings.SHOP_NAME, UIStrings.ENTER_NEW_SHOP_NAME)
 
-    # изменяет значения принимаемых годовой суммы и месяца с максимальным потреблением,
-    # которые передаются как нулевой элемент списков
-    @staticmethod
-    def set_data_months(grid_months, sum_months, max_usage_month):
-        max_usage = 0.0
-        for grid in grid_months.children():
-            for i in range(len(grid)):
-                if type(grid.itemAt(i).widget()) is QtWidgets.QDoubleSpinBox:
-                    sum_months[0] += grid.itemAt(i).widget().value()
-                    if grid.itemAt(i).widget().value() > max_usage:
-                        max_usage = grid.itemAt(i).widget().value()
-                        max_usage_month[0] = grid.itemAt(i).widget().statusTip()
+    def show_open_file_name_dialog(self) -> str:
+        return QtWidgets.QFileDialog.getOpenFileName(self, UIStrings.CHOOSE_FILE, os.getenv("Home"), "CSV (*.csv)")[0]
 
-    def load_file_click(self):
-        csv_path = QtWidgets.QFileDialog.getOpenFileName(self, 'Выберите файл', os.getenv('Home'), 'CSV (*.csv)')
-        if csv_path[0] != '':
-            with open(csv_path[0], 'r') as file:
-                csv_reader = csv.reader(file, delimiter=';')
-                self.clear_app()
-                try:
-                    self.shop_data.load_shop_list(csv_reader)
-                    shop_list = self.shop_data.get_shop_list()
-                    for row in shop_list:
-                        self.comboBox_shop.addItem(row[0])
-                except:
-                    QtWidgets.QMessageBox.about(self, 'Ошибка', 'Файл не может быть проанализирован')
+    def show_save_file_name_dialog(self) -> str:
+        return QtWidgets.QFileDialog.getSaveFileName(self, UIStrings.SAVE_FILE, "", "CSV (*.csv);;Excel (*.xlsx)")[0]
 
-    def clear_app(self):
-        self.comboBox_shop.clear()
-        self.shop_data.clear_shops()
-        self.lbl_max_power_usage_value.setText('Не найдено')
-        self.lbl_total_value.setText('0,00')
-        for grid in self.grid_months.children():
-            for i in range(len(grid)):
-                if type(grid.itemAt(i).widget()) is QtWidgets.QDoubleSpinBox:
-                    grid.itemAt(i).widget().setValue(0)
+    def show_error_message(self, error_message: ErrorStrings):
+        QtWidgets.QMessageBox.about(self, UIStrings.ERROR_DEFAULT, error_message)
 
-    def save_file_click(self):
-        shop_list = [self.shop_data.get_first_line()]
-        shop_list.extend(self.shop_data.get_shop_list())
-        shop_list.append(self.shop_data.get_total_line())
-        if len(shop_list) > 2:
-            csv_path = QtWidgets.QFileDialog.getSaveFileName(self, 'Сохраните файл', '', 'CSV (*.csv);;Excel (*.xlsx)')
-            if csv_path[0] != '':
-                try:
-                    if '.csv' in csv_path[0]:
-                        with open(csv_path[0], 'w') as file:
-                            csv_writer = csv.writer(file, delimiter=';', lineterminator='\n')
-                            for line in shop_list:
-                                csv_writer.writerow(line)
-                    elif '.xlsx' in csv_path[0]:
-                        self.shop_data.save_data_as_xlsx(shop_list, csv_path[0])
-                except:
-                    QtWidgets.QMessageBox.about(self, 'Ошибка', 'Невозможно записать файл')
-        else:
-            QtWidgets.QMessageBox.about(self, 'Ошибка', 'Записи о цехах не найдены')
+    def _set_shop_max_consumption(self, max_consumption: str):
+        self.lbl_max_power_usage_value.setText(max_consumption)
 
+    def _set_shop_total(self, total: str):
+        self.lbl_total_value.setText(total)
 
-def main():
-    app_main = QtWidgets.QApplication(sys.argv)
-    window = App()
-    window.show()
-    sys.exit(app_main.exec_())
+    # noinspection PyMethodMayBeStatic
+    def _get_max_consumption_month_name(self, month_index: int | None) -> str:
+        if month_index is None:
+            return UIStrings.NOT_FOUND
+        return UIStrings.MONTHS[month_index]
 
+    # noinspection PyMethodMayBeStatic
+    def _set_enabled_fields(self, layout: QLayout, is_enabled: bool):
+        for item in range(layout.count()):
+            layout_item = layout.itemAt(item)
+            if layout_item is None:
+                continue
 
-if __name__ == '__main__':  # Если запускаем этот файл,
-    main()  # то активируем функцию main()
+            widget = layout_item.widget()
+            if widget and isinstance(widget, (QtWidgets.QLabel, QtWidgets.QDoubleSpinBox, QtWidgets.QPushButton)):
+                widget.setEnabled(is_enabled)
